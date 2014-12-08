@@ -164,7 +164,6 @@ class Config implements \ArrayAccess
         }
     }
 
-
     /**
      * ArrayAccess offsetExists
      *
@@ -177,7 +176,7 @@ class Config implements \ArrayAccess
     }
 
     /**
-     * ArrayAcces offsetGet
+     * ArrayAccess offsetGet
      *
      * @param  mixed $offset
      * @return mixed
@@ -258,13 +257,13 @@ class Config implements \ArrayAccess
             (substr($data, -5) == '.php3') ||
             (substr($data, -4) == '.php'))) {
             $data = include $data;
-            // If JSON
+        // If JSON
         } else if (substr($data, -5) == '.json') {
             $data = json_decode(file_get_contents($data), true);
-            // If INI
+        // If INI
         } else if (substr($data, -4) == '.ini') {
             $data = parse_ini_file($data, true);
-            // If XML
+        // If XML
         } else if (substr($data, -4) == '.xml') {
             $data = (array)simplexml_load_file($data);
         }
