@@ -2,6 +2,7 @@ pop-config
 ==========
 
 [![Build Status](https://travis-ci.org/popphp/pop-config.svg?branch=master)](https://travis-ci.org/popphp/pop-config)
+[![Coverage Status](http://www.popphp.org/cc/coverage.php?comp=pop-config)](http://www.popphp.org/cc/pop-config/)
 
 OVERVIEW
 --------
