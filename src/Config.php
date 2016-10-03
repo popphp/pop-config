@@ -21,9 +21,9 @@ namespace Pop\Config;
  * @author     Nick Sagona, III <dev@nolainteractive.com>
  * @copyright  Copyright (c) 2009-2016 NOLA Interactive, LLC. (http://www.nolainteractive.com)
  * @license    http://www.popphp.org/license     New BSD License
- * @version    2.1.0
+ * @version    3.0.0
  */
-class Config implements \ArrayAccess
+class Config implements \ArrayAccess, \Countable, \IteratorAggregate
 {
     /**
      * Flag for whether or not changes are allowed after object instantiation
@@ -32,69 +32,91 @@ class Config implements \ArrayAccess
     protected $allowChanges = false;
 
     /**
-     * Config values as config objects
+     * Config values
      * @var array
      */
-    protected $data = [];
-
-    /**
-     * Config values as an array
-     * @var array
-     */
-    protected $array = [];
+    protected $config = [];
 
     /**
      * Constructor
      *
      * Instantiate a config object
      *
-     * @param  mixed   $data
+     * @param  mixed   $config
+     * @param  string  $key
      * @param  boolean $changes
-     * @return Config
      */
-    public function __construct($data, $changes = false)
+    public function __construct($config, $key = null, $changes = false)
     {
         $this->allowChanges = (bool)$changes;
-        $this->setConfig($data);
+        $this->setConfig($config, $key);
+    }
+
+    /**
+     * Method to get the count of data in the config
+     *
+     * @return int
+     */
+    public function count()
+    {
+        return count($this->config);
+    }
+
+    /**
+     * Method to iterate over the config
+     *
+     * @return \ArrayIterator
+     */
+    public function getIterator()
+    {
+        return new \ArrayIterator($this->config);
     }
 
     /**
      * Merge the values of another config object into this one
      *
-     * @param  mixed $data
+     * @param  mixed $config
      * @throws Exception
      * @return Config
      */
-    public function merge($data)
+    public function merge($config)
     {
         // If data is a file
-        if (!is_array($data) && !($data instanceof Config) && file_exists($data)) {
-            $data = $this->parseConfig($data);
-            if (!is_array($data)) {
+        if (!is_array($config) && !($config instanceof Config) && file_exists($config)) {
+            $config = $this->parseConfig($config);
+            if (!is_array($config)) {
                 throw new Exception('Error: Unable to parse the config data.');
             }
         }
 
         $orig  = $this->toArray();
-        $merge = ($data instanceof Config) ? $data->toArray() : $data;
+        $merge = ($config instanceof Config) ? $config->toArray() : $config;
 
         $this->setConfig(array_merge_recursive($orig, $merge));
-        $this->array = [];
 
         return $this;
     }
 
     /**
-     * Get the config values as an array or ArrayObject
+     * Get the config values as an array
      *
-     * @param  boolean $arrayObject
      * @return array
      */
-    public function toArray($arrayObject = false)
+    public function toArray()
     {
-        $this->array = ($arrayObject) ? new \ArrayObject([], \ArrayObject::ARRAY_AS_PROPS) : [];
-        $this->getConfig($arrayObject);
-        return $this->array;
+        $config = $this->config;
+
+        foreach ($this->config as $key => $value) {
+            if ($value instanceof Config) {
+                if (!$value->isStringable()) {
+                    $config[$key] = $value->toArray();
+                } else {
+                    $config[$key] = (string)$value;
+                }
+            }
+        }
+
+        return $config;
     }
 
     /**
@@ -108,6 +130,16 @@ class Config implements \ArrayAccess
     }
 
     /**
+     * Determine if the value of the config object is stringable (non-array/scalar)
+     *
+     * @return boolean
+     */
+    public function isStringable()
+    {
+        return ((string)$this != '');
+    }
+
+    /**
      * Magic get method to return the value of config[$name].
      *
      * @param  string $name
@@ -115,7 +147,7 @@ class Config implements \ArrayAccess
      */
     public function __get($name)
     {
-        return (array_key_exists($name, $this->data)) ? $this->data[$name] : null;
+        return (isset($this->config[$name])) ? $this->config[$name] : null;
     }
 
     /**
@@ -128,11 +160,11 @@ class Config implements \ArrayAccess
      */
     public function __set($name, $value)
     {
-        if ($this->allowChanges) {
-            $this->data[$name] = (is_array($value) ? new Config($value, $this->allowChanges) : $value);
-        } else {
+        if (!$this->allowChanges) {
             throw new Exception('Real-time configuration changes are not allowed.');
         }
+
+        $this->config[$name] = (!($value instanceof Config)) ? new Config($value, $this->allowChanges) : $value;
     }
 
     /**
@@ -143,7 +175,7 @@ class Config implements \ArrayAccess
      */
     public function __isset($name)
     {
-        return isset($this->data[$name]);
+        return isset($this->config[$name]);
     }
 
     /**
@@ -155,11 +187,10 @@ class Config implements \ArrayAccess
      */
     public function __unset($name)
     {
-        if ($this->allowChanges) {
-            unset($this->data[$name]);
-        } else {
+        if (!$this->allowChanges) {
             throw new Exception('Real-time configuration changes are not allowed.');
         }
+        unset($this->config[$name]);
     }
 
     /**
@@ -208,65 +239,72 @@ class Config implements \ArrayAccess
     }
 
     /**
-     * Set the config values
+     * Attempt to render config as a string
      *
-     * @param  mixed $data
-     * @throws Exception
-     * @return void
+     * @return string
      */
-    protected function setConfig($data)
+    public function __toString()
     {
-        // If data is a file
-        if (!is_array($data) && file_exists($data)) {
-            $data = $this->parseConfig($data);
-        }
+        $str = '';
 
-        if (!is_array($data)) {
-            throw new Exception('Error: Unable to parse the config data.');
+        if (count($this->config) == 1) {
+            $value = reset($this->config);
+            if (!is_array($value) && !($value instanceof \ArrayObject) && !($value instanceof \ArrayAccess)) {
+                $str = (string)$value;
+            }
         }
-        foreach ($data as $key => $value) {
-            $this->data[$key] = (is_array($value) ? new Config($value, $this->allowChanges) : $value);
-        }
+        return $str;
     }
 
     /**
-     * Get the config values as array
+     * Set the config values
      *
-     * @param  boolean $arrayObject
+     * @param  mixed  $config
+     * @param  string $name
+     * @throws Exception
      * @return void
      */
-    protected function getConfig($arrayObject = false)
+    protected function setConfig($config, $name = null)
     {
-        foreach ($this->data as $key => $value) {
-            $this->array[$key] = ($value instanceof Config) ? $value->toArray($arrayObject) : $value;
+        // If data is a file
+        if (!is_array($config) && file_exists($config)) {
+            $config = $this->parseConfig($config);
+        }
+
+        if (is_array($config)) {
+            foreach ($config as $key => $value) {
+                $this->config[$key] = (!$value instanceof Config) ? new self($value, $key, $this->allowChanges) : $value;
+            }
+        } else {
+            $this->config[$name] = $config;
         }
     }
 
     /**
      * Parse passed the config values
      *
-     * @param  mixed $data
+     * @param  mixed $config
      * @return array
      */
-    protected function parseConfig($data)
+    protected function parseConfig($config)
     {
         // If PHP
-        if (((substr($data, -6) == '.phtml') ||
-            (substr($data, -5) == '.php3') ||
-            (substr($data, -4) == '.php'))) {
-            $data = include $data;
+        if (((substr($config, -6) == '.phtml') ||
+            (substr($config, -5) == '.php3') ||
+            (substr($config, -4) == '.php'))) {
+            $config = include $config;
         // If JSON
-        } else if (substr($data, -5) == '.json') {
-            $data = json_decode(file_get_contents($data), true);
+        } else if (substr($config, -5) == '.json') {
+            $config = json_decode(file_get_contents($config), true);
         // If INI
-        } else if (substr($data, -4) == '.ini') {
-            $data = parse_ini_file($data, true);
+        } else if (substr($config, -4) == '.ini') {
+            $config = parse_ini_file($config, true);
         // If XML
-        } else if (substr($data, -4) == '.xml') {
-            $data = (array)simplexml_load_file($data);
+        } else if (substr($config, -4) == '.xml') {
+            $config = (array)simplexml_load_file($config);
         }
 
-        return $data;
+        return $config;
     }
 
 }
