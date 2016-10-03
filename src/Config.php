@@ -32,7 +32,7 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     protected $allowChanges = false;
 
     /**
-     * Config value
+     * Config value(s)
      * @var array
      */
     protected $configValue = [];
@@ -314,7 +314,7 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
      * @param  mixed $configValue
      * @return array
      */
-        protected function parseConfigValue($configValue)
+    protected function parseConfigValue($configValue)
     {
         // If PHP
         if (((substr($configValue, -6) == '.phtml') ||
