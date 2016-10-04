@@ -25,6 +25,7 @@ namespace Pop\Config;
  */
 class Config implements \ArrayAccess, \Countable, \IteratorAggregate
 {
+
     /**
      * Flag for whether or not changes are allowed after object instantiation
      * @var boolean
