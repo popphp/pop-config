@@ -74,13 +74,16 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     }
 
     /**
-     * Merge the values of another config object into this one
+     * Merge the values of another config object into this one.
+     * By default, existing values are overwritten, unless the
+     * $preserve flag is set to true.
      *
-     * @param  mixed $configValue
+     * @param  mixed   $configValue
+     * @param  boolean $preserve
      * @throws Exception
      * @return Config
      */
-    public function merge($configValue)
+    public function merge($configValue, $preserve = false)
     {
         if (!$this->allowChanges) {
             throw new Exception('Real-time configuration changes are not allowed.');
@@ -93,8 +96,9 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
 
         $original  = $this->toArray();
         $mergeWith = ($configValue instanceof Config) ? $configValue->toArray() : $configValue;
+        $merged    = ($preserve) ? array_merge_recursive($original, $mergeWith) : array_replace_recursive($original, $mergeWith);
 
-        $this->setConfigValue(array_merge_recursive($original, $mergeWith));
+        $this->setConfigValue($merged);
 
         return $this;
     }
