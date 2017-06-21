@@ -49,7 +49,7 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     public function __construct($values = [], $changes = false)
     {
         $this->allowChanges = (bool)$changes;
-        $this->values       = $this->getValuesAsArray($values);
+        $this->setValues($values);
     }
 
     /**
@@ -161,7 +161,48 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
      */
     public function toArray()
     {
-        return $this->values;
+        if ($this->values instanceof self) {
+            $values = $this->values->toArray();
+        } else if ($this->values instanceof \ArrayObject) {
+            $values = (array)$this->values;
+        } else if ($this->values instanceof \Traversable) {
+            $values = iterator_to_array($this->values);
+        } else {
+            $values = $this->values;
+        }
+
+        foreach ($values as $key => $value) {
+            if ($value instanceof Config) {
+                $values[$key] = $value->toArray();
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Get the config value()s as an array
+     *
+     * @return \ArrayObject
+     */
+    public function toArrayObject()
+    {
+        if ($this->values instanceof self) {
+            $values = $this->values->toArray();
+        } else if ($this->values instanceof \ArrayObject) {
+            $values = (array)$this->values;
+        } else if ($this->values instanceof \Traversable) {
+            $values = iterator_to_array($this->values);
+        } else {
+            $values = $this->values;
+        }
+
+        foreach ($values as $key => $value) {
+            if ($value instanceof Config) {
+                $values[$key] = $value->toArray();
+            }
+        }
+        return new \ArrayObject($values, \ArrayObject::ARRAY_AS_PROPS);
     }
 
     /**
@@ -175,21 +216,19 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     }
 
     /**
-     * Method to get values as an array
+     * Method to set values of the config object
      *
      * @param  mixed $values
-     * @return array
+     * @return void
      */
-    protected function getValuesAsArray($values)
+    protected function setValues($values)
     {
-        if ($values instanceof self) {
-            $values = $values->toArray();
-        } else if ($values instanceof \ArrayObject) {
-            $values = (array)$values;
-        } else if ($values instanceof \Traversable) {
-            $values = iterator_to_array($values);
+        foreach ($values as $key => $value) {
+            if (is_array($value) || ($value instanceof \ArrayObject)) {
+                $values[$key] = new self($value, $this->allowChanges);
+            }
         }
-        return $values;
+        $this->values = $values;
     }
 
     /**
