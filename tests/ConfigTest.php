@@ -9,22 +9,19 @@ class ConfigTest extends \PHPUnit_Framework_TestCase
 
     public function testConstructor()
     {
-        $config1 = new Config([
+        $config = new Config([
             'foo' => 'bar'
         ]);
 
-        $config2 = new Config(123, true, 'baz');
-        $this->assertInstanceOf('Pop\Config\Config', $config1);
-        $this->assertEquals('bar', $config1->foo);
-        $this->assertEquals('bar', $config1['foo']);
-        $this->assertEquals(1, count($config1));
-        $this->assertEquals(123, $config2->baz);
-        $this->assertFalse($config1->changesAllowed());
-        $this->assertTrue($config2->changesAllowed());
+        $this->assertInstanceOf('Pop\Config\Config', $config);
+        $this->assertEquals('bar', $config->foo);
+        $this->assertEquals('bar', $config['foo']);
+        $this->assertEquals(1, count($config));
+        $this->assertFalse($config->changesAllowed());
 
         $c = [];
 
-        foreach ($config1 as $key => $value) {
+        foreach ($config as $key => $value) {
             $c[$key] = $value;
         }
         $this->assertEquals(1, count($c));
@@ -45,29 +42,15 @@ class ConfigTest extends \PHPUnit_Framework_TestCase
 
     public function testToArray()
     {
-        $config = new Config([
-            'foo' => 'bar'
-        ]);
+        $config = new Config(new Config(['foo' => 'bar']));
         $array = $config->toArray();
         $this->assertTrue(is_array($array));
         $this->assertEquals('bar', $array['foo']);
-    }
 
-    public function testToScalar()
-    {
-        $config = new Config('bar');
-        $this->assertEquals('bar', $config->toScalar());
-    }
-
-    public function testToString()
-    {
-        $config = new Config('bar');
-
-        ob_start();
-        echo $config;
-        $result = ob_get_clean();
-
-        $this->assertEquals('bar', $result);
+        $config = new Config(new \ArrayObject(['foo' => 'bar']));
+        $array = $config->toArray();
+        $this->assertTrue(is_array($array));
+        $this->assertEquals('bar', $array['foo']);
     }
 
     public function testSetException()
@@ -134,28 +117,28 @@ class ConfigTest extends \PHPUnit_Framework_TestCase
 
     public function testParsePhp()
     {
-        $config = new Config(__DIR__ . '/tmp/config.php');
+        $config = Config::createFromData(__DIR__ . '/tmp/config.php');
         $this->assertTrue(isset($config->foo));
         $this->assertEquals('bar', $config->foo);
     }
 
     public function testParseJson()
     {
-        $config = new Config(__DIR__ . '/tmp/config.json');
+        $config = Config::createFromData(__DIR__ . '/tmp/config.json');
         $this->assertTrue(isset($config->foo));
         $this->assertEquals('bar', $config->foo);
     }
 
     public function testParseIni()
     {
-        $config = new Config(__DIR__ . '/tmp/config.ini');
+        $config = Config::createFromData(__DIR__ . '/tmp/config.ini');
         $this->assertTrue(isset($config->foo));
         $this->assertEquals('bar', $config->foo);
     }
 
     public function testParseXml()
     {
-        $config = new Config(__DIR__ . '/tmp/config.xml');
+        $config = Config::createFromData(__DIR__ . '/tmp/config.xml');
         $this->assertTrue(isset($config->foo));
         $this->assertEquals('bar', $config->foo);
     }
@@ -165,7 +148,7 @@ class ConfigTest extends \PHPUnit_Framework_TestCase
         $config = new Config([
             'baz' => 123
         ], true);
-        $config->merge(__DIR__ . '/tmp/config.php');
+        $config->mergeFromData(__DIR__ . '/tmp/config.php');
         $this->assertTrue(isset($config->foo));
         $this->assertTrue(isset($config['baz']));
         $this->assertEquals(123, $config->baz);

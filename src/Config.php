@@ -36,20 +36,20 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
      * Config values
      * @var array
      */
-    protected $values = [];
+    protected $values = null;
 
     /**
      * Constructor
      *
      * Instantiate a config object
      *
-     * @param  array   $values
+     * @param  mixed   $values
      * @param  boolean $changes
      */
-    public function __construct(array $values, $changes = false)
+    public function __construct($values = [], $changes = false)
     {
         $this->allowChanges = (bool)$changes;
-        $this->values       = $values;
+        $this->values       = $this->getValuesAsArray($values);
     }
 
     /**
@@ -85,7 +85,7 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
             $values = parse_ini_file($data, true);
         // If XML
         } else if (substr($data, -4) == '.xml') {
-        $values = (array)simplexml_load_file($data);
+            $values = (array)simplexml_load_file($data);
         } else {
             $values = [];
         }
@@ -129,7 +129,8 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
             throw new Exception('Real-time configuration changes are not allowed.');
         }
 
-        $this->values = ($preserve) ? array_merge_recursive($this->values, $values) : array_replace_recursive($this->values, $values);
+        $this->values = ($preserve) ?
+            array_merge_recursive($this->values, $values) : array_replace_recursive($this->values, $values);
 
         return $this;
     }
@@ -150,10 +151,7 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
             throw new Exception('Real-time configuration changes are not allowed.');
         }
 
-        $mergeWith    = self::parseData($data);
-        $this->values = ($preserve) ? array_merge_recursive($this->values, $mergeWith) : array_replace_recursive($this->values, $mergeWith);
-
-        return $this;
+        return $this->merge(self::parseData($data), $preserve);
     }
 
     /**
@@ -174,6 +172,24 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     public function changesAllowed()
     {
         return $this->allowChanges;
+    }
+
+    /**
+     * Method to get values as an array
+     *
+     * @param  mixed $values
+     * @return array
+     */
+    protected function getValuesAsArray($values)
+    {
+        if ($values instanceof self) {
+            $values = $values->toArray();
+        } else if ($values instanceof \ArrayObject) {
+            $values = (array)$values;
+        } else if ($values instanceof \Traversable) {
+            $values = iterator_to_array($values);
+        }
+        return $values;
     }
 
     /**
