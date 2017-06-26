@@ -73,18 +73,18 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     public static function parseData($data)
     {
         // If PHP
-        if (((substr($data, -6) == '.phtml') ||
-            (substr($data, -5) == '.php3') ||
-            (substr($data, -4) == '.php'))) {
+        if ((strtolower((substr($data, -6)) == '.phtml') ||
+            strtolower((substr($data, -5)) == '.php3') ||
+            strtolower((substr($data, -4)) == '.php'))) {
             $values = include $data;
         // If JSON
-        } else if (substr($data, -5) == '.json') {
+        } else if (strtolower(substr($data, -5)) == '.json') {
             $values = json_decode(file_get_contents($data), true);
         // If INI
-        } else if (substr($data, -4) == '.ini') {
+        } else if (strtolower(substr($data, -4)) == '.ini') {
             $values = parse_ini_file($data, true);
         // If XML
-        } else if (substr($data, -4) == '.xml') {
+        } else if (strtolower(substr($data, -4)) == '.xml') {
             $values = (array)simplexml_load_file($data);
         } else {
             $values = [];
