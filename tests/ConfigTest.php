@@ -163,4 +163,105 @@ class ConfigTest extends \PHPUnit_Framework_TestCase
         $config->merge(__DIR__ . '/tmp/baddata');
     }
 
+    public function testWriteToPhp()
+    {
+        $config = new Config([
+            'foo' => 'bar',
+            'baz' => [
+                'hello' => 'world',
+                'yo' => [
+                    'whats' => [
+                        'up',
+                        'dude'
+                    ]
+                ]
+            ]
+        ]);
+        $config->writeToFile(__DIR__ . '/tmp/write.php');
+        $this->assertFileExists(__DIR__ . '/tmp/write.php');
+        $this->assertContains("'hello' => 'world',", file_get_contents(__DIR__ . '/tmp/write.php'));
+        if (file_exists(__DIR__ . '/tmp/write.php')) {
+            unlink(__DIR__ . '/tmp/write.php');
+        }
+    }
+
+    public function testWriteToJson()
+    {
+        $config = new Config([
+            'foo' => 'bar',
+            'baz' => [
+                'hello' => 'world',
+                'yo' => [
+                    'whats' => [
+                        'up',
+                        'dude'
+                    ]
+                ]
+            ]
+        ]);
+        $config->writeToFile(__DIR__ . '/tmp/write.json');
+        $this->assertFileExists(__DIR__ . '/tmp/write.json');
+        $this->assertContains('"foo": "bar",', file_get_contents(__DIR__ . '/tmp/write.json'));
+        if (file_exists(__DIR__ . '/tmp/write.json')) {
+            unlink(__DIR__ . '/tmp/write.json');
+        }
+    }
+
+    public function testWriteToIni()
+    {
+        $ini = parse_ini_string(<<<INI
+one = 1
+five = 5
+animal = "BIRD"
+path = "/usr/local/bin"
+URL = "http://www.example.com/~username"
+
+[phpversion]
+phpversion[] = 5.0
+phpversion[] = 5.1
+phpversion[] = 5.2
+phpversion[] = 5.3
+
+[urls]
+urls[svn] = "http://svn.php.net"
+urls[git] = "http://git.php.net"
+INI
+);
+
+        $config = new Config($ini);
+        $config->writeToFile(__DIR__ . '/tmp/write.ini');
+        $this->assertFileExists(__DIR__ . '/tmp/write.ini');
+        $this->assertContains('one = 1', file_get_contents(__DIR__ . '/tmp/write.ini'));
+        $this->assertContains('phpversion[] = 5.0', file_get_contents(__DIR__ . '/tmp/write.ini'));
+        $this->assertContains('urls[git] = "http://git.php.net"', file_get_contents(__DIR__ . '/tmp/write.ini'));
+        if (file_exists(__DIR__ . '/tmp/write.ini')) {
+            unlink(__DIR__ . '/tmp/write.ini');
+        }
+    }
+
+    public function testWriteToXml()
+    {
+        $config = new Config([
+            'foo' => 'bar',
+            'baz' => [
+                'hello' => 'world',
+                'yo' => [
+                    'whats' => [
+                        'up',
+                        'dude'
+                    ]
+                ]
+            ]
+        ]);
+        $config->writeToFile(__DIR__ . '/tmp/write.xml');
+        $this->assertFileExists(__DIR__ . '/tmp/write.xml');
+        $this->assertContains('<?xml version="1.0"?>', file_get_contents(__DIR__ . '/tmp/write.xml'));
+        $this->assertContains('<config>', file_get_contents(__DIR__ . '/tmp/write.xml'));
+        $this->assertContains('<hello>world</hello>', file_get_contents(__DIR__ . '/tmp/write.xml'));
+        $this->assertContains('</config>', file_get_contents(__DIR__ . '/tmp/write.xml'));
+        if (file_exists(__DIR__ . '/tmp/write.xml')) {
+            unlink(__DIR__ . '/tmp/write.xml');
+        }
+    }
+
 }

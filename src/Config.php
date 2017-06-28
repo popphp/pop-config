@@ -21,7 +21,7 @@ namespace Pop\Config;
  * @author     Nick Sagona, III <dev@nolainteractive.com>
  * @copyright  Copyright (c) 2009-2017 NOLA Interactive, LLC. (http://www.nolainteractive.com)
  * @license    http://www.popphp.org/license     New BSD License
- * @version    3.1.1
+ * @version    3.2.0
  */
 class Config implements \ArrayAccess, \Countable, \IteratorAggregate
 {
@@ -155,6 +155,46 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     }
 
     /**
+     * Write the config data to file
+     *
+     * @param  string $filename
+     * @throws Exception
+     * @return void
+     */
+    public function writeToFile($filename)
+    {
+        if (strpos($filename, '.') !== false) {
+            $ext = strtolower(substr($filename, (strpos($filename, '.') + 1)));
+            switch ($ext) {
+                case 'php':
+                    $config  = '<?php' . PHP_EOL . PHP_EOL;
+                    $config .= 'return ' . var_export($this->toArray(), true) . ';';
+                    $config .= PHP_EOL;
+                    file_put_contents($filename, $config);
+                    break;
+                case 'json':
+                    file_put_contents($filename, json_encode($this->toArray(), JSON_PRETTY_PRINT));
+                    break;
+                case 'ini':
+                    file_put_contents($filename, $this->arrayToIni($this->toArray()));
+                    break;
+                case 'xml':
+                    $config = new \SimpleXMLElement('<?xml version="1.0"?><config></config>');
+                    $this->arrayToXml($this->toArray(), $config);
+
+                    $dom = new \DOMDocument('1.0');
+                    $dom->preserveWhiteSpace = false;
+                    $dom->formatOutput       = true;
+                    $dom->loadXML($config->asXML());
+                    $dom->save($filename);
+                    break;
+                default:
+                    throw new Exception('Invalid type. Config file types supported are PHP, JSON, INI or XML.');
+            }
+        }
+    }
+
+    /**
      * Get the config value()s as an array
      *
      * @return array
@@ -229,6 +269,62 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
             }
         }
         $this->values = $values;
+    }
+
+    /**
+     * Method to convert array to XML
+     *
+     * @param  array             $array
+     * @param  \SimpleXMLElement $config
+     * @return void
+     */
+    protected function arrayToXml($array, \SimpleXMLElement &$config)
+    {
+        foreach($array as $key => $value) {
+            if(is_array($value)) {
+                $subNode = (!is_numeric($key)) ? $config->addChild($key) : $config->addChild('item');
+                $this->arrayToXml($value, $subNode);
+            } else {
+                if (!is_numeric($key)) {
+                    $config->addChild($key, htmlspecialchars($value));
+                } else {
+                    $config->addChild('item', htmlspecialchars($value));
+                }
+            }
+        }
+    }
+
+    /**
+     * Method to convert array to INI
+     *
+     * @param  array $array
+     * @return string
+     */
+    protected function arrayToIni(array $array)
+    {
+        $ini          = '';
+        $lastWasArray = false;
+
+        foreach ($array as $key => $value) {
+            if (is_array($value)) {
+                if (!$lastWasArray) {
+                    $ini .= PHP_EOL;
+                }
+                $ini .= '[' . $key . ']' . PHP_EOL;
+                foreach ($value as $k => $v) {
+                    if (!is_array($v)) {
+                        $ini .= $key . '[' . ((!is_numeric($k)) ? $k : null) . '] = ' . ((!is_numeric($v)) ? '"' . $v . '"' : $v) . PHP_EOL;
+                    }
+                }
+                $ini .= PHP_EOL;
+                $lastWasArray = true;
+            } else {
+                $ini .= $key . " = " . ((!is_numeric($value)) ? '"' . $value . '"' : $value) . PHP_EOL;
+                $lastWasArray = false;
+            }
+        }
+
+        return $ini;
     }
 
     /**
