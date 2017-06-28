@@ -173,20 +173,13 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
                     file_put_contents($filename, $config);
                     break;
                 case 'json':
-                    file_put_contents($filename, json_encode($this->toArray(), JSON_PRETTY_PRINT));
+                    file_put_contents($filename, $this->toJson());
                     break;
                 case 'ini':
-                    file_put_contents($filename, $this->arrayToIni($this->toArray()));
+                    file_put_contents($filename, $this->toIni());
                     break;
                 case 'xml':
-                    $config = new \SimpleXMLElement('<?xml version="1.0"?><config></config>');
-                    $this->arrayToXml($this->toArray(), $config);
-
-                    $dom = new \DOMDocument('1.0');
-                    $dom->preserveWhiteSpace = false;
-                    $dom->formatOutput       = true;
-                    $dom->loadXML($config->asXML());
-                    $dom->save($filename);
+                    file_put_contents($filename, $this->toXml());
                     break;
                 default:
                     throw new Exception('Invalid type. Config file types supported are PHP, JSON, INI or XML.');
@@ -243,6 +236,43 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
             }
         }
         return new \ArrayObject($values, \ArrayObject::ARRAY_AS_PROPS);
+    }
+
+    /**
+     * Get the config value()s as a JSON string
+     *
+     * @return string
+     */
+    public function toJson()
+    {
+        return json_encode($this->toArray(), JSON_PRETTY_PRINT);
+    }
+
+    /**
+     * Get the config value()s as an INI string
+     *
+     * @return string
+     */
+    public function toIni()
+    {
+        return $this->arrayToIni($this->toArray());
+    }
+
+    /**
+     * Get the config value()s as an XML string
+     *
+     * @return string
+     */
+    public function toXml()
+    {
+        $config = new \SimpleXMLElement('<?xml version="1.0"?><config></config>');
+        $this->arrayToXml($this->toArray(), $config);
+
+        $dom = new \DOMDocument('1.0');
+        $dom->preserveWhiteSpace = false;
+        $dom->formatOutput       = true;
+        $dom->loadXML($config->asXML());
+        return $dom->saveXML();
     }
 
     /**
