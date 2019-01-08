@@ -3,8 +3,9 @@
 namespace Pop\Config\Test;
 
 use Pop\Config\Config;
+use PHPUnit\Framework\TestCase;
 
-class ConfigTest extends \PHPUnit_Framework_TestCase
+class ConfigTest extends TestCase
 {
 
     public function testConstructor()
@@ -51,6 +52,24 @@ class ConfigTest extends \PHPUnit_Framework_TestCase
         $array = $config->toArray();
         $this->assertTrue(is_array($array));
         $this->assertEquals('bar', $array['foo']);
+    }
+
+    public function testToArrayObject()
+    {
+        $config = new Config(['foo' => 'bar']);
+        $array = $config->toArrayObject();
+        $this->assertInstanceOf('ArrayObject', $array);
+        $this->assertEquals('bar', $array->foo);
+
+        $config = new Config(new Config(['foo' => 'bar']));
+        $array = $config->toArrayObject();
+        $this->assertInstanceOf('ArrayObject', $array);
+        $this->assertEquals('bar', $array->foo);
+
+        $config = new Config(new \ArrayObject(['foo' => 'bar']));
+        $array = $config->toArrayObject();
+        $this->assertInstanceOf('ArrayObject', $array);
+        $this->assertEquals('bar', $array->foo);
     }
 
     public function testSetException()
@@ -143,6 +162,12 @@ class ConfigTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('bar', $config->foo);
     }
 
+    public function testParseEmpty()
+    {
+        $config = Config::createFromData(__DIR__ . '/tmp/baddata');
+        $this->assertEquals(0, count($config->toArray()));
+    }
+
     public function testMergeParse()
     {
         $config = new Config([
@@ -161,6 +186,15 @@ class ConfigTest extends \PHPUnit_Framework_TestCase
             'baz' => 123
         ]);
         $config->merge(__DIR__ . '/tmp/baddata');
+    }
+
+    public function testMergeNoChangesException()
+    {
+        $this->expectException('Pop\Config\Exception');
+        $config = new Config([
+            'baz' => 123
+        ]);
+        $config->mergeFromData(__DIR__ . '/tmp/config.php');
     }
 
     public function testWriteToPhp()
@@ -262,6 +296,24 @@ INI
         if (file_exists(__DIR__ . '/tmp/write.xml')) {
             unlink(__DIR__ . '/tmp/write.xml');
         }
+    }
+
+    public function testWriteException()
+    {
+        $this->expectException('Pop\Config\Exception');
+        $config = new Config([
+            'foo' => 'bar',
+            'baz' => [
+                'hello' => 'world',
+                'yo' => [
+                    'whats' => [
+                        'up',
+                        'dude'
+                    ]
+                ]
+            ]
+        ]);
+        $config->writeToFile(__DIR__ . '/tmp/write.bad');
     }
 
 }
