@@ -4,7 +4,7 @@
  *
  * @link       https://github.com/popphp/popphp-framework
  * @author     Nick Sagona, III <dev@nolainteractive.com>
- * @copyright  Copyright (c) 2009-2019 NOLA Interactive, LLC. (http://www.nolainteractive.com)
+ * @copyright  Copyright (c) 2009-2020 NOLA Interactive, LLC. (http://www.nolainteractive.com)
  * @license    http://www.popphp.org/license     New BSD License
  */
 
@@ -19,9 +19,9 @@ namespace Pop\Config;
  * @category   Pop
  * @package    Pop\Config
  * @author     Nick Sagona, III <dev@nolainteractive.com>
- * @copyright  Copyright (c) 2009-2019 NOLA Interactive, LLC. (http://www.nolainteractive.com)
+ * @copyright  Copyright (c) 2009-2020 NOLA Interactive, LLC. (http://www.nolainteractive.com)
  * @license    http://www.popphp.org/license     New BSD License
- * @version    3.2.2
+ * @version    3.2.3
  */
 class Config implements \ArrayAccess, \Countable, \IteratorAggregate
 {
@@ -343,7 +343,9 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
                 $ini .= '[' . $key . ']' . PHP_EOL;
                 foreach ($value as $k => $v) {
                     if (!is_array($v)) {
-                        $ini .= $key . '[' . ((!is_numeric($k)) ? $k : null) . '] = ' . ((!is_numeric($v)) ? '"' . $v . '"' : $v) . PHP_EOL;
+                        $ini .= $key .
+                            '[' . ((!is_numeric($k)) ? $k : null) . '] = ' .
+                            ((!is_numeric($v)) ? '"' . $v . '"' : $v) . PHP_EOL;
                     }
                 }
                 $ini .= PHP_EOL;
