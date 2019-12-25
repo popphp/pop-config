@@ -13,6 +13,8 @@
  */
 namespace Pop\Config;
 
+use Pop\Utils;
+
 /**
  * Config class
  *
@@ -21,9 +23,9 @@ namespace Pop\Config;
  * @author     Nick Sagona, III <dev@nolainteractive.com>
  * @copyright  Copyright (c) 2009-2020 NOLA Interactive, LLC. (http://www.nolainteractive.com)
  * @license    http://www.popphp.org/license     New BSD License
- * @version    3.2.3
+ * @version    3.3.0
  */
-class Config implements \ArrayAccess, \Countable, \IteratorAggregate
+class Config extends Utils\ArrayObject
 {
 
     /**
@@ -33,23 +35,17 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     protected $allowChanges = false;
 
     /**
-     * Config values
-     * @var array
-     */
-    protected $values = null;
-
-    /**
      * Constructor
      *
      * Instantiate a config object
      *
-     * @param  mixed   $values
+     * @param  mixed   $data
      * @param  boolean $changes
      */
-    public function __construct($values = [], $changes = false)
+    public function __construct($data = [], $changes = false)
     {
         $this->allowChanges = (bool)$changes;
-        $this->setValues($values);
+        parent::__construct($data);
     }
 
     /**
@@ -74,43 +70,22 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     {
         // If PHP
         if ((strtolower((substr($data, -6)) == '.phtml') ||
-            strtolower((substr($data, -5)) == '.php3') ||
             strtolower((substr($data, -4)) == '.php'))) {
-            $values = include $data;
+            $data = include $data;
         // If JSON
         } else if (strtolower(substr($data, -5)) == '.json') {
-            $values = json_decode(file_get_contents($data), true);
+            $data = json_decode(file_get_contents($data), true);
         // If INI
         } else if (strtolower(substr($data, -4)) == '.ini') {
-            $values = parse_ini_file($data, true);
+            $data = parse_ini_file($data, true);
         // If XML
         } else if (strtolower(substr($data, -4)) == '.xml') {
-            $values = (array)simplexml_load_file($data);
+            $data = (array)simplexml_load_file($data);
         } else {
-            $values = [];
+            $data = [];
         }
 
-        return $values;
-    }
-
-    /**
-     * Method to get the count of data in the config
-     *
-     * @return int
-     */
-    public function count()
-    {
-        return count($this->values);
-    }
-
-    /**
-     * Method to iterate over the config
-     *
-     * @return \ArrayIterator
-     */
-    public function getIterator()
-    {
-        return new \ArrayIterator($this->values);
+        return $data;
     }
 
     /**
@@ -118,19 +93,19 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
      * By default, existing values are overwritten, unless the
      * $preserve flag is set to true.
      *
-     * @param  mixed    $values
+     * @param  mixed    $data
      * @param  boolean $preserve
      * @throws Exception
      * @return Config
      */
-    public function merge($values, $preserve = false)
+    public function merge($data, $preserve = false)
     {
         if (!$this->allowChanges) {
             throw new Exception('Real-time configuration changes are not allowed.');
         }
 
-        $this->values = ($preserve) ?
-            array_merge_recursive($this->values, $values) : array_replace_recursive($this->values, $values);
+        $this->data = ($preserve) ?
+            array_merge_recursive($this->data, $data) : array_replace_recursive($this->data, $data);
 
         return $this;
     }
@@ -164,7 +139,7 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     public function writeToFile($filename)
     {
         if (strpos($filename, '.') !== false) {
-            $ext = strtolower(substr($filename, (strpos($filename, '.') + 1)));
+            $ext = strtolower(substr($filename, (strrpos($filename, '.') + 1)));
             switch ($ext) {
                 case 'php':
                     $config  = '<?php' . PHP_EOL . PHP_EOL;
@@ -182,74 +157,33 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
                     file_put_contents($filename, $this->toXml());
                     break;
                 default:
-                    throw new Exception('Invalid type. Config file types supported are PHP, JSON, INI or XML.');
+                    throw new Exception("Invalid type '" . $ext . "'. Supported config file types are PHP, JSON, INI or XML.");
             }
         }
     }
 
     /**
-     * Get the config value()s as an array
-     *
-     * @return array
-     */
-    public function toArray()
-    {
-        if ($this->values instanceof self) {
-            $values = $this->values->toArray();
-        } else if ($this->values instanceof \ArrayObject) {
-            $values = (array)$this->values;
-        } else if ($this->values instanceof \Traversable) {
-            $values = iterator_to_array($this->values);
-        } else {
-            $values = $this->values;
-        }
-
-        foreach ($values as $key => $value) {
-            if ($value instanceof Config) {
-                $values[$key] = $value->toArray();
-            }
-        }
-
-        return $values;
-    }
-
-    /**
-     * Get the config value()s as an array
+     * Get the config values as an array
      *
      * @return \ArrayObject
      */
     public function toArrayObject()
     {
-        if ($this->values instanceof self) {
-            $values = $this->values->toArray();
-        } else if ($this->values instanceof \ArrayObject) {
-            $values = (array)$this->values;
-        } else if ($this->values instanceof \Traversable) {
-            $values = iterator_to_array($this->values);
-        } else {
-            $values = $this->values;
-        }
-
-        foreach ($values as $key => $value) {
-            if ($value instanceof Config) {
-                $values[$key] = $value->toArray();
-            }
-        }
-        return new \ArrayObject($values, \ArrayObject::ARRAY_AS_PROPS);
+        return new \ArrayObject($this->toArray(), \ArrayObject::ARRAY_AS_PROPS);
     }
 
     /**
-     * Get the config value()s as a JSON string
+     * Get the config values as a JSON string
      *
      * @return string
      */
     public function toJson()
     {
-        return json_encode($this->toArray(), JSON_PRETTY_PRINT);
+        return $this->jsonSerialize(JSON_PRETTY_PRINT);
     }
 
     /**
-     * Get the config value()s as an INI string
+     * Get the config values as an INI string
      *
      * @return string
      */
@@ -259,7 +193,7 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     }
 
     /**
-     * Get the config value()s as an XML string
+     * Get the config values as an XML string
      *
      * @return string
      */
@@ -283,22 +217,6 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     public function changesAllowed()
     {
         return $this->allowChanges;
-    }
-
-    /**
-     * Method to set values of the config object
-     *
-     * @param  mixed $values
-     * @return void
-     */
-    protected function setValues($values)
-    {
-        foreach ($values as $key => $value) {
-            if (is_array($value) || ($value instanceof \ArrayObject)) {
-                $values[$key] = new self($value, $this->allowChanges);
-            }
-        }
-        $this->values = $values;
     }
 
     /**
@@ -360,18 +278,7 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
     }
 
     /**
-     * Magic get method to return the value of values[$name].
-     *
-     * @param  string $name
-     * @return mixed
-     */
-    public function __get($name)
-    {
-        return (isset($this->values[$name])) ? $this->values[$name] : null;
-    }
-
-    /**
-     * Magic set method to set the property to the value of values[$name].
+     * Set a value
      *
      * @param  string $name
      * @param  mixed $value
@@ -383,23 +290,11 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
         if (!$this->allowChanges) {
             throw new Exception('Real-time configuration changes are not allowed.');
         }
-
-        $this->values[$name] = $value;
+        parent::__set($name, $value);
     }
 
     /**
-     * Return the isset value of values[$name].
-     *
-     * @param  string $name
-     * @return boolean
-     */
-    public function __isset($name)
-    {
-        return isset($this->values[$name]);
-    }
-
-    /**
-     * Unset values[$name].
+     * Unset a value
      *
      * @param  string $name
      * @throws Exception
@@ -410,52 +305,7 @@ class Config implements \ArrayAccess, \Countable, \IteratorAggregate
         if (!$this->allowChanges) {
             throw new Exception('Real-time configuration changes are not allowed.');
         }
-        unset($this->values[$name]);
-    }
-
-    /**
-     * ArrayAccess offsetExists
-     *
-     * @param  mixed $offset
-     * @return boolean
-     */
-    public function offsetExists($offset)
-    {
-        return $this->__isset($offset);
-    }
-
-    /**
-     * ArrayAccess offsetGet
-     *
-     * @param  mixed $offset
-     * @return mixed
-     */
-    public function offsetGet($offset)
-    {
-        return $this->__get($offset);
-    }
-
-    /**
-     * ArrayAccess offsetSet
-     *
-     * @param  mixed $offset
-     * @param  mixed $value
-     * @return void
-     */
-    public function offsetSet($offset, $value)
-    {
-        $this->__set($offset, $value);
-    }
-
-    /**
-     * ArrayAccess offsetUnset
-     *
-     * @param  mixed $offset
-     * @return void
-     */
-    public function offsetUnset($offset)
-    {
-        $this->__unset($offset);
+        parent::__unset($name);
     }
 
 }
