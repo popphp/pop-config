@@ -213,7 +213,7 @@ class ConfigTest extends TestCase
         ]);
         $config->writeToFile(__DIR__ . '/tmp/write.php');
         $this->assertFileExists(__DIR__ . '/tmp/write.php');
-        $this->assertContains("'hello' => 'world',", file_get_contents(__DIR__ . '/tmp/write.php'));
+        $this->assertStringContainsString("'hello' => 'world',", file_get_contents(__DIR__ . '/tmp/write.php'));
         if (file_exists(__DIR__ . '/tmp/write.php')) {
             unlink(__DIR__ . '/tmp/write.php');
         }
@@ -235,7 +235,7 @@ class ConfigTest extends TestCase
         ]);
         $config->writeToFile(__DIR__ . '/tmp/write.json');
         $this->assertFileExists(__DIR__ . '/tmp/write.json');
-        $this->assertContains('"foo": "bar",', file_get_contents(__DIR__ . '/tmp/write.json'));
+        $this->assertStringContainsString('"foo": "bar",', file_get_contents(__DIR__ . '/tmp/write.json'));
         if (file_exists(__DIR__ . '/tmp/write.json')) {
             unlink(__DIR__ . '/tmp/write.json');
         }
@@ -265,9 +265,9 @@ INI
         $config = new Config($ini);
         $config->writeToFile(__DIR__ . '/tmp/write.ini');
         $this->assertFileExists(__DIR__ . '/tmp/write.ini');
-        $this->assertContains('one = 1', file_get_contents(__DIR__ . '/tmp/write.ini'));
-        $this->assertContains('phpversion[] = 5.0', file_get_contents(__DIR__ . '/tmp/write.ini'));
-        $this->assertContains('urls[git] = "http://git.php.net"', file_get_contents(__DIR__ . '/tmp/write.ini'));
+        $this->assertStringContainsString('one = 1', file_get_contents(__DIR__ . '/tmp/write.ini'));
+        $this->assertStringContainsString('phpversion[] = 5.0', file_get_contents(__DIR__ . '/tmp/write.ini'));
+        $this->assertStringContainsString('urls[git] = "http://git.php.net"', file_get_contents(__DIR__ . '/tmp/write.ini'));
         if (file_exists(__DIR__ . '/tmp/write.ini')) {
             unlink(__DIR__ . '/tmp/write.ini');
         }
@@ -289,10 +289,10 @@ INI
         ]);
         $config->writeToFile(__DIR__ . '/tmp/write.xml');
         $this->assertFileExists(__DIR__ . '/tmp/write.xml');
-        $this->assertContains('<?xml version="1.0"?>', file_get_contents(__DIR__ . '/tmp/write.xml'));
-        $this->assertContains('<config>', file_get_contents(__DIR__ . '/tmp/write.xml'));
-        $this->assertContains('<hello>world</hello>', file_get_contents(__DIR__ . '/tmp/write.xml'));
-        $this->assertContains('</config>', file_get_contents(__DIR__ . '/tmp/write.xml'));
+        $this->assertStringContainsString('<?xml version="1.0"?>', file_get_contents(__DIR__ . '/tmp/write.xml'));
+        $this->assertStringContainsString('<config>', file_get_contents(__DIR__ . '/tmp/write.xml'));
+        $this->assertStringContainsString('<hello>world</hello>', file_get_contents(__DIR__ . '/tmp/write.xml'));
+        $this->assertStringContainsString('</config>', file_get_contents(__DIR__ . '/tmp/write.xml'));
         if (file_exists(__DIR__ . '/tmp/write.xml')) {
             unlink(__DIR__ . '/tmp/write.xml');
         }
