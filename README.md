@@ -24,7 +24,7 @@ Install `pop-config` using Composer.
 Or, require it in your composer.json file
 
     "require": {
-        "popphp/pop-config" : "3.0.*"
+        "popphp/pop-config" : "3.4.*"
     }
 
 BASIC USAGE

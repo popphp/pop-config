@@ -29,7 +29,7 @@ class Config extends Utils\ArrayObject
 {
 
     /**
-     * Flag for whether or not changes are allowed after object instantiation
+     * Flag for whether changes are allowed after object instantiation
      * @var boolean
      */
     protected $allowChanges = false;
