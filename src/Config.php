@@ -4,7 +4,7 @@
  *
  * @link       https://github.com/popphp/popphp-framework
  * @author     Nick Sagona, III <dev@nolainteractive.com>
- * @copyright  Copyright (c) 2009-2023 NOLA Interactive, LLC. (http://www.nolainteractive.com)
+ * @copyright  Copyright (c) 2009-2024 NOLA Interactive, LLC. (http://www.nolainteractive.com)
  * @license    http://www.popphp.org/license     New BSD License
  */
 
@@ -13,7 +13,9 @@
  */
 namespace Pop\Config;
 
-use Pop\Utils;
+use Pop\Utils\ArrayObject;
+use SimpleXMLElement;
+use DOMDocument;
 
 /**
  * Config class
@@ -21,41 +23,42 @@ use Pop\Utils;
  * @category   Pop
  * @package    Pop\Config
  * @author     Nick Sagona, III <dev@nolainteractive.com>
- * @copyright  Copyright (c) 2009-2023 NOLA Interactive, LLC. (http://www.nolainteractive.com)
+ * @copyright  Copyright (c) 2009-2024 NOLA Interactive, LLC. (http://www.nolainteractive.com)
  * @license    http://www.popphp.org/license     New BSD License
- * @version    3.4.0
+ * @version    4.0.0
  */
-class Config extends Utils\ArrayObject
+class Config extends ArrayObject
 {
 
     /**
      * Flag for whether changes are allowed after object instantiation
-     * @var boolean
+     * @var bool
      */
-    protected $allowChanges = false;
+    protected bool $allowChanges = false;
 
     /**
      * Constructor
      *
      * Instantiate a config object
      *
-     * @param  mixed   $data
-     * @param  boolean $changes
+     * @param mixed $data
+     * @param bool  $changes
+     * @throws Exception
      */
-    public function __construct($data = [], $changes = false)
+    public function __construct(mixed $data = [], bool $changes = false)
     {
-        $this->allowChanges = (bool)$changes;
+        $this->allowChanges = $changes;
         parent::__construct($data);
     }
 
     /**
      * Method to create a config object from parsed data
      *
-     * @param  mixed   $data
-     * @param  boolean $changes
+     * @param  mixed $data
+     * @param  bool  $changes
      * @return self
      */
-    public static function createFromData($data, $changes = false)
+    public static function createFromData(mixed $data = [], bool $changes = false): Config
     {
         return new self(self::parseData($data), $changes);
     }
@@ -66,7 +69,7 @@ class Config extends Utils\ArrayObject
      * @param  mixed $data
      * @return array
      */
-    public static function parseData($data)
+    public static function parseData(mixed $data): array
     {
         // If PHP
         if ((strtolower((substr($data, -6)) == '.phtml') ||
@@ -93,12 +96,12 @@ class Config extends Utils\ArrayObject
      * By default, existing values are overwritten, unless the
      * $preserve flag is set to true.
      *
-     * @param  mixed    $data
-     * @param  boolean $preserve
+     * @param  mixed $data
+     * @param  bool  $preserve
      * @throws Exception
      * @return Config
      */
-    public function merge($data, $preserve = false)
+    public function merge(mixed $data, bool $preserve = false): Config
     {
         if (!$this->allowChanges) {
             throw new Exception('Real-time configuration changes are not allowed.');
@@ -115,12 +118,12 @@ class Config extends Utils\ArrayObject
      * By default, existing values are overwritten, unless the
      * $preserve flag is set to true.
      *
-     * @param  mixed   $data
-     * @param  boolean $preserve
+     * @param  mixed $data
+     * @param  bool  $preserve
      * @throws Exception
      * @return Config
      */
-    public function mergeFromData($data, $preserve = false)
+    public function mergeFromData(mixed $data, bool $preserve = false): Config
     {
         if (!$this->allowChanges) {
             throw new Exception('Real-time configuration changes are not allowed.');
@@ -136,9 +139,9 @@ class Config extends Utils\ArrayObject
      * @throws Exception
      * @return void
      */
-    public function writeToFile($filename)
+    public function writeToFile(string $filename): void
     {
-        if (strpos($filename, '.') !== false) {
+        if (str_contains($filename, '.')) {
             $ext = strtolower(substr($filename, (strrpos($filename, '.') + 1)));
             switch ($ext) {
                 case 'php':
@@ -165,11 +168,12 @@ class Config extends Utils\ArrayObject
     /**
      * Get the config values as an array
      *
-     * @return \ArrayObject
+     * @throws \Pop\Utils\Exception
+     * @return ArrayObject|\ArrayObject
      */
-    public function toArrayObject()
+    public function toArrayObject($native = false): ArrayObject|\ArrayObject
     {
-        return new \ArrayObject($this->toArray(), \ArrayObject::ARRAY_AS_PROPS);
+        return ($native) ? new \ArrayObject($this->toArray(), \ArrayObject::ARRAY_AS_PROPS) : new ArrayObject($this->toArray());
     }
 
     /**
@@ -177,7 +181,7 @@ class Config extends Utils\ArrayObject
      *
      * @return string
      */
-    public function toJson()
+    public function toJson(): string
     {
         return $this->jsonSerialize(JSON_PRETTY_PRINT);
     }
@@ -187,7 +191,7 @@ class Config extends Utils\ArrayObject
      *
      * @return string
      */
-    public function toIni()
+    public function toIni(): string
     {
         return $this->arrayToIni($this->toArray());
     }
@@ -197,12 +201,12 @@ class Config extends Utils\ArrayObject
      *
      * @return string
      */
-    public function toXml()
+    public function toXml(): string
     {
-        $config = new \SimpleXMLElement('<?xml version="1.0"?><config></config>');
+        $config = new SimpleXMLElement('<?xml version="1.0"?><config></config>');
         $this->arrayToXml($this->toArray(), $config);
 
-        $dom = new \DOMDocument('1.0');
+        $dom = new DOMDocument('1.0');
         $dom->preserveWhiteSpace = false;
         $dom->formatOutput       = true;
         $dom->loadXML($config->asXML());
@@ -212,9 +216,9 @@ class Config extends Utils\ArrayObject
     /**
      * Return if changes to the config are allowed.
      *
-     * @return boolean
+     * @return bool
      */
-    public function changesAllowed()
+    public function changesAllowed(): bool
     {
         return $this->allowChanges;
     }
@@ -222,11 +226,11 @@ class Config extends Utils\ArrayObject
     /**
      * Method to convert array to XML
      *
-     * @param  array             $array
-     * @param  \SimpleXMLElement $config
+     * @param  array            $array
+     * @param  SimpleXMLElement $config
      * @return void
      */
-    protected function arrayToXml($array, \SimpleXMLElement &$config)
+    protected function arrayToXml(array $array, SimpleXMLElement &$config): void
     {
         foreach($array as $key => $value) {
             if(is_array($value)) {
@@ -248,7 +252,7 @@ class Config extends Utils\ArrayObject
      * @param  array $array
      * @return string
      */
-    protected function arrayToIni(array $array)
+    protected function arrayToIni(array $array): string
     {
         $ini          = '';
         $lastWasArray = false;
@@ -285,7 +289,7 @@ class Config extends Utils\ArrayObject
      * @throws Exception
      * @return void
      */
-    public function __set($name, $value)
+    public function __set(string $name, mixed $value)
     {
         if (!$this->allowChanges) {
             throw new Exception('Real-time configuration changes are not allowed.');
@@ -300,7 +304,7 @@ class Config extends Utils\ArrayObject
      * @throws Exception
      * @return void
      */
-    public function __unset($name)
+    public function __unset(string $name): void
     {
         if (!$this->allowChanges) {
             throw new Exception('Real-time configuration changes are not allowed.');

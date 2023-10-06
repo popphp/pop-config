@@ -58,17 +58,19 @@ class ConfigTest extends TestCase
     {
         $config = new Config(['foo' => 'bar']);
         $array = $config->toArrayObject();
+        $this->assertInstanceOf('Pop\Utils\ArrayObject', $array);
+        $array = $config->toArrayObject(true);
         $this->assertInstanceOf('ArrayObject', $array);
         $this->assertEquals('bar', $array->foo);
 
         $config = new Config(new Config(['foo' => 'bar']));
         $array = $config->toArrayObject();
-        $this->assertInstanceOf('ArrayObject', $array);
+        $this->assertInstanceOf('Pop\Utils\ArrayObject', $array);
         $this->assertEquals('bar', $array->foo);
 
         $config = new Config(new \ArrayObject(['foo' => 'bar']));
         $array = $config->toArrayObject();
-        $this->assertInstanceOf('ArrayObject', $array);
+        $this->assertInstanceOf('Pop\Utils\ArrayObject', $array);
         $this->assertEquals('bar', $array->foo);
     }
 
