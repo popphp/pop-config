@@ -107,6 +107,10 @@ class Config extends ArrayObject
             throw new Exception('Real-time configuration changes are not allowed.');
         }
 
+        if ($data instanceof Config) {
+            $data = $data->toArray();
+        }
+
         $this->data = ($preserve) ?
             array_merge_recursive($this->data, $data) : array_replace_recursive($this->data, $data);
 

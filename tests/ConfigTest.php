@@ -130,10 +130,14 @@ class ConfigTest extends TestCase
         $config->merge([
             'baz' => 123
         ]);
+        $config->merge(new Config([
+            'test' => 456
+        ], true));
 
         $this->assertTrue(isset($config->foo));
         $this->assertTrue(isset($config['baz']));
         $this->assertEquals(123, $config->baz);
+        $this->assertEquals(456, $config->test);
     }
 
     public function testParsePhp()
