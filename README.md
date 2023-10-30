@@ -4,7 +4,14 @@ pop-config
 [![Build Status](https://github.com/popphp/pop-config/workflows/phpunit/badge.svg)](https://github.com/popphp/pop-config/actions)
 [![Coverage Status](http://cc.popphp.org/coverage.php?comp=pop-config)](http://cc.popphp.org/pop-config/)
 
-OVERVIEW
+[![Join the chat at https://popphp.slack.com](https://media.popphp.org/img/slack.svg)](https://popphp.slack.com)
+[![Join the chat at https://discord.gg/D9JBxPa5](https://media.popphp.org/img/discord.svg)](https://discord.gg/D9JBxPa5)
+
+* [Overview](#overview)
+* [Install](#install)
+* [Quickstart](#quickstart)
+
+Overview
 --------
 `pop-config` is a basic configuration component that helps centralize application
 configuration values and parameters. Values can be accessed via array notation or
@@ -14,7 +21,7 @@ from common formats, such as JSON, INI and XML.
 
 `pop-config` is a component of the [Pop PHP Framework](http://www.popphp.org/).
 
-INSTALL
+Install
 -------
 
 Install `pop-config` using Composer.
@@ -27,8 +34,10 @@ Or, require it in your composer.json file
         "popphp/pop-config" : "^4.0.0"
     }
 
-BASIC USAGE
------------
+[Top](#pop-config)
+
+Quickstart
+----------
 
 ### Set and access values
 
@@ -76,3 +85,6 @@ $config->merge($newData);
 $config = new Pop\Config\Config($configData);
 $data   = $config->toArray();
 ```
+
+[Top](#pop-config)
+
