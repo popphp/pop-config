@@ -17,7 +17,7 @@ Overview
 configuration values and parameters. Values can be accessed via array notation or
 object arrow notation. It can disable changes to the configuration values if need
 be for the life-cycle of the application. It also can parse configuration values
-from common formats, such as JSON, INI and XML.
+from common formats, such as JSON, YAML, XML and INI.
 
 `pop-config` is a component of the [Pop PHP Framework](http://www.popphp.org/).
 
@@ -42,7 +42,9 @@ Quickstart
 ### Set and access values
 
 ```php
-$config = new Pop\Config\Config(['foo' => 'bar']);
+use Pop\Config\Config;
+
+$config = new Config(['foo' => 'bar']);
 
 $foo = $config->foo;
 // OR
@@ -54,8 +56,28 @@ $foo = $config['foo'];
 Changes to configuration values are disabled by default.
 
 ```php
-$config = new Pop\Config\Config(['foo' => 'bar'], true);
+use Pop\Config\Config;
+
+$config = new Config(['foo' => 'bar'], true);
 $config->foo = 'New Value';
+```
+
+### Merge new values into the config object
+
+```php
+use Pop\Config\Config;
+
+$config = new Config($configData);
+$config->merge($newData);
+```
+
+### Convert config object down to a basic array
+
+```php
+use Pop\Config\Config;
+
+$config = new Config($configData);
+$data   = $config->toArray();
 ```
 
 ### Parse a configuration file
@@ -66,24 +88,23 @@ $config->foo = 'New Value';
     baz = 2
 
 ```php
-$config = new Pop\Config\Config('/path/to/config.ini');
+use Pop\Config\Config;
+
+$config = Config::createFromData('/path/to/config.ini');
 
 // $value equals 1
 $value = $config->foo->bar;
 ```
 
-### Merge new values into the config object
+### Render config data to a string format
+
+Supported formats include PHP, JSON, YAML, XML, INI
 
 ```php
-$config = new Pop\Config\Config($configData);
-$config->merge($newData);
-```
+use Pop\Config\Config;
 
-### Convert config object down to a basic array
-
-```php
-$config = new Pop\Config\Config($configData);
-$data   = $config->toArray();
+$config = new Config($configData);
+echo $config->render('json');
 ```
 
 [Top](#pop-config)

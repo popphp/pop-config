@@ -1,0 +1,24 @@
+---
+invoice: 34843
+date: 980208000
+bill-to:
+  given: John
+  family: Doe
+  address:
+    lines: |-
+      123 Main St
+              Suite #1
+    city: Some City
+    state: NY
+    postal: 12345
+ship-to:
+  given: John
+  family: Doe
+  address:
+    lines: |-
+      123 Main St
+        Suite #1
+    city: Some City
+    state: NY
+    postal: 12345
+...

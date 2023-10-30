@@ -78,6 +78,10 @@ class Config extends ArrayObject
         // If JSON
         } else if (strtolower(substr($data, -5)) == '.json') {
             $data = json_decode(file_get_contents($data), true);
+        // If YAML - requires YAML ext
+        } else if ((strtolower(substr($data, -5)) == '.yaml') ||
+            (strtolower(substr($data, -4)) == '.yml'))  {
+            $data = yaml_parse(file_get_contents($data));
         // If INI
         } else if (strtolower(substr($data, -4)) == '.ini') {
             $data = parse_ini_file($data, true);
@@ -137,6 +141,45 @@ class Config extends ArrayObject
     }
 
     /**
+     * Render data to a string format
+     *
+     * @param  string $format
+     * @throws Exception
+     * @return string
+     */
+    public function render(string $format): string
+    {
+        $config = '';
+
+        switch (strtolower($format)) {
+            case 'php':
+            case 'phtml':
+                $config  = '<?php' . PHP_EOL . PHP_EOL;
+                $config .= 'return ' . var_export($this->toArray(), true) . ';';
+                $config .= PHP_EOL;
+                break;
+            case 'json':
+                $config = $this->toJson();
+                break;
+            case 'yml':
+            case 'yaml':
+                return $this->toYaml();
+            case 'ini':
+                $config = $this->toIni();
+                break;
+            case 'xml':
+                $config =$this->toXml();
+                break;
+            default:
+                throw new Exception(
+                    "Invalid type '" . $format . "'. Supported config file types are PHP, JSON, YAML, INI or XML."
+                );
+        }
+
+        return $config;
+    }
+
+    /**
      * Write the config data to file
      *
      * @param  string $filename
@@ -147,25 +190,7 @@ class Config extends ArrayObject
     {
         if (str_contains($filename, '.')) {
             $ext = strtolower(substr($filename, (strrpos($filename, '.') + 1)));
-            switch ($ext) {
-                case 'php':
-                    $config  = '<?php' . PHP_EOL . PHP_EOL;
-                    $config .= 'return ' . var_export($this->toArray(), true) . ';';
-                    $config .= PHP_EOL;
-                    file_put_contents($filename, $config);
-                    break;
-                case 'json':
-                    file_put_contents($filename, $this->toJson());
-                    break;
-                case 'ini':
-                    file_put_contents($filename, $this->toIni());
-                    break;
-                case 'xml':
-                    file_put_contents($filename, $this->toXml());
-                    break;
-                default:
-                    throw new Exception("Invalid type '" . $ext . "'. Supported config file types are PHP, JSON, INI or XML.");
-            }
+            file_put_contents($filename, $this->render($ext));
         }
     }
 
@@ -188,6 +213,16 @@ class Config extends ArrayObject
     public function toJson(): string
     {
         return $this->jsonSerialize(JSON_PRETTY_PRINT);
+    }
+
+    /**
+     * Get the config values as an YAML string
+     *
+     * @return string
+     */
+    public function toYaml(): string
+    {
+        return $this->arrayToYaml($this->toArray());
     }
 
     /**
@@ -248,6 +283,17 @@ class Config extends ArrayObject
                 }
             }
         }
+    }
+
+    /**
+     * Method to convert array to Yaml
+     *
+     * @param  array $array
+     * @return string
+     */
+    protected function arrayToYaml(array $array): string
+    {
+        return yaml_emit($array);
     }
 
     /**

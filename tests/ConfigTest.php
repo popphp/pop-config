@@ -154,6 +154,13 @@ class ConfigTest extends TestCase
         $this->assertEquals('bar', $config->foo);
     }
 
+    public function testParseYaml()
+    {
+        $config = Config::createFromData(__DIR__ . '/tmp/config.yml');
+        $this->assertTrue(isset($config->invoice));
+        $this->assertEquals(34843, $config->invoice);
+    }
+
     public function testParseIni()
     {
         $config = Config::createFromData(__DIR__ . '/tmp/config.ini');
@@ -244,6 +251,28 @@ class ConfigTest extends TestCase
         $this->assertStringContainsString('"foo": "bar",', file_get_contents(__DIR__ . '/tmp/write.json'));
         if (file_exists(__DIR__ . '/tmp/write.json')) {
             unlink(__DIR__ . '/tmp/write.json');
+        }
+    }
+
+    public function testWriteToYaml()
+    {
+        $config = new Config([
+            'foo' => 'bar',
+            'baz' => [
+                'hello' => 'world',
+                'yo' => [
+                    'whats' => [
+                        'up',
+                        'dude'
+                    ]
+                ]
+            ]
+        ]);
+        $config->writeToFile(__DIR__ . '/tmp/write.yaml');
+        $this->assertFileExists(__DIR__ . '/tmp/write.yaml');
+        $this->assertStringContainsString('foo: bar', file_get_contents(__DIR__ . '/tmp/write.yaml'));
+        if (file_exists(__DIR__ . '/tmp/write.yaml')) {
+            unlink(__DIR__ . '/tmp/write.yaml');
         }
     }
 
