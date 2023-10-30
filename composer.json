@@ -24,11 +24,13 @@
         "popphp/pop-utils": "^2.0.0",
         "ext-json": "*",
         "ext-simplexml": "*",
-        "ext-yaml": "*",
         "ext-dom": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "^10.0.0"
+    },
+    "suggest": {
+        "ext-yaml": "For handling YAML data"
     },
     "autoload": {
         "psr-4": {
