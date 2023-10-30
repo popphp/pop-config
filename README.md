@@ -17,7 +17,7 @@ Overview
 configuration values and parameters. Values can be accessed via array notation or
 object arrow notation. It can disable changes to the configuration values if need
 be for the life-cycle of the application. It also can parse configuration values
-from common formats, such as JSON, YAML, XML and INI.
+from common formats, such as JSON, XML, INI and YAML.
 
 `pop-config` is a component of the [Pop PHP Framework](http://www.popphp.org/).
 
@@ -98,7 +98,7 @@ $value = $config->foo->bar;
 
 ### Render config data to a string format
 
-Supported formats include PHP, JSON, YAML, XML, INI
+Supported formats include PHP, JSON, XML, INI and YAML
 
 ```php
 use Pop\Config\Config;
