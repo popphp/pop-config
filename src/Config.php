@@ -334,12 +334,11 @@ class Config extends ArrayObject
     /**
      * Set a value
      *
-     * @param  string $name
+     * @param  ?string $name
      * @param  mixed $value
-     * @throws Exception
-     * @return void
+     * @return static
      */
-    public function __set(string $name, mixed $value)
+    public function __set(?string $name = null, mixed $value = null)
     {
         if (!$this->allowChanges) {
             throw new Exception('Real-time configuration changes are not allowed.');
