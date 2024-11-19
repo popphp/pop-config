@@ -4,7 +4,6 @@ pop-config
 [![Build Status](https://github.com/popphp/pop-config/workflows/phpunit/badge.svg)](https://github.com/popphp/pop-config/actions)
 [![Coverage Status](http://cc.popphp.org/coverage.php?comp=pop-config)](http://cc.popphp.org/pop-config/)
 
-[![Join the chat at https://popphp.slack.com](https://media.popphp.org/img/slack.svg)](https://popphp.slack.com)
 [![Join the chat at https://discord.gg/TZjgT74U7E](https://media.popphp.org/img/discord.svg)](https://discord.gg/TZjgT74U7E)
 
 * [Overview](#overview)
@@ -19,7 +18,7 @@ object arrow notation. It can disable changes to the configuration values if nee
 be for the life-cycle of the application. It also can parse configuration values
 from common formats, such as JSON, XML, INI and YAML.
 
-`pop-config` is a component of the [Pop PHP Framework](http://www.popphp.org/).
+`pop-config` is a component of the [Pop PHP Framework](https://www.popphp.org/).
 
 Install
 -------
