@@ -30,7 +30,7 @@ Install `pop-config` using Composer.
 Or, require it in your composer.json file
 
     "require": {
-        "popphp/pop-config" : "^4.0.3"
+        "popphp/pop-config" : "^4.0.4"
     }
 
 [Top](#pop-config)
