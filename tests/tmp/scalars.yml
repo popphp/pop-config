@@ -1,0 +1,8 @@
+debug: no
+flag: yes
+octal: 0755
+truthy: true
+falsy: false
+onoff_on: on
+onoff_off: off
+name: hello

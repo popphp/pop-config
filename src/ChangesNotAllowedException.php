@@ -14,7 +14,7 @@
 namespace Pop\Config;
 
 /**
- * Pop config exception class
+ * Pop config changes-not-allowed exception class
  *
  * @category   Pop
  * @package    Pop\Config
@@ -23,4 +23,4 @@ namespace Pop\Config;
  * @license    https://www.popphp.org/license     New BSD License
  * @version    5.0.0
  */
-class Exception extends \Exception {}
+class ChangesNotAllowedException extends Exception {}

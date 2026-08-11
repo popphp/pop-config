@@ -92,6 +92,29 @@ class ConfigTest extends TestCase
         unset($config->foo);
     }
 
+    public function testSetExceptionIsChangesNotAllowedException()
+    {
+        $this->expectException('Pop\Config\ChangesNotAllowedException');
+        $config = new Config([
+            'foo' => 'bar'
+        ]);
+        $config->foo = 'baz';
+    }
+
+    public function testChangesNotAllowedExceptionCaughtAsBaseException()
+    {
+        $config = new Config([
+            'foo' => 'bar'
+        ]);
+
+        try {
+            $config->foo = 'baz';
+            $this->fail('Expected exception was not thrown.');
+        } catch (\Pop\Config\Exception $e) {
+            $this->assertInstanceOf('Pop\Config\ChangesNotAllowedException', $e);
+        }
+    }
+
     public function testSet()
     {
         $config = new Config([
@@ -120,6 +143,109 @@ class ConfigTest extends TestCase
         ]);
         $this->assertTrue(isset($config->foo));
         $this->assertTrue(isset($config['foo']));
+        $this->assertFalse(isset($config->missing));
+        $this->assertFalse(isset($config['missing']));
+    }
+
+    public function testDotNotationGet()
+    {
+        $config = new Config([
+            'database' => [
+                'host' => 'localhost',
+                'port' => 5432
+            ]
+        ]);
+        $this->assertEquals('localhost', $config['database.host']);
+        $this->assertEquals('localhost', $config->{'database.host'});
+        $this->assertEquals(5432, $config['database.port']);
+    }
+
+    public function testDotNotationGetUnresolvedPathReturnsNull()
+    {
+        $config = new Config([
+            'database' => [
+                'host' => 'localhost'
+            ]
+        ]);
+        $this->assertNull($config['database.missing']);
+        $this->assertNull($config['missing.path.here']);
+        $this->assertNull($config['database.host.too.deep']);
+    }
+
+    public function testDotNotationIsset()
+    {
+        $config = new Config([
+            'database' => [
+                'host' => 'localhost'
+            ]
+        ]);
+        $this->assertTrue(isset($config['database.host']));
+        $this->assertFalse(isset($config['database.missing']));
+    }
+
+    public function testDotNotationLiteralKeyWins()
+    {
+        $config = new Config([
+            'example.com' => 'ok',
+            'a'           => [
+                'b' => 1
+            ]
+        ]);
+        $this->assertEquals('ok', $config['example.com']);
+        $this->assertEquals(1, $config['a.b']);
+    }
+
+    public function testDotNotationSetAutoVivifies()
+    {
+        $config = new Config([], true);
+        $config['database.host'] = 'localhost';
+        $this->assertEquals(['database' => ['host' => 'localhost']], $config->toArray());
+    }
+
+    public function testDotNotationSetOverwritesExistingLiteralKey()
+    {
+        $config = new Config([
+            'example.com' => 'old'
+        ], true);
+        $config['example.com'] = 'new';
+        $this->assertEquals(['example.com' => 'new'], $config->toArray());
+    }
+
+    public function testDotNotationUnsetRemovesLeafOnly()
+    {
+        $config = new Config([
+            'database' => [
+                'host' => 'localhost',
+                'port' => 5432
+            ]
+        ], true);
+        unset($config['database.host']);
+        $this->assertEquals(['database' => ['port' => 5432]], $config->toArray());
+    }
+
+    public function testDotNotationUnsetUnresolvedPathIsNoOp()
+    {
+        $config = new Config([
+            'database' => [
+                'host' => 'localhost'
+            ]
+        ], true);
+        unset($config['database.missing.deep']);
+        $this->assertEquals(['database' => ['host' => 'localhost']], $config->toArray());
+    }
+
+    public function testDotNotationSetNewKeyCreatesNestedStructureNotLiteralKey()
+    {
+        $config = new Config([], true);
+        $config['example.com'] = 'value';
+        $this->assertEquals(['example' => ['com' => 'value']], $config->toArray());
+    }
+
+    public function testDotNotationSetOverwritesScalarMiddleSegment()
+    {
+        $config = new Config(['a' => 'scalar'], true);
+        $config['a.b'] = 1;
+        $this->assertEquals(['a' => ['b' => 1]], $config->toArray());
     }
 
     public function testMerge()
@@ -138,6 +264,53 @@ class ConfigTest extends TestCase
         $this->assertTrue(isset($config['baz']));
         $this->assertEquals(123, $config->baz);
         $this->assertEquals(456, $config->test);
+    }
+
+    public function testMergePreserveKeepsExistingScalarOnCollision()
+    {
+        $config = new Config([
+            'foo' => 'original'
+        ], true);
+        $config->merge([
+            'foo' => 'incoming',
+            'bar' => 'new'
+        ], true);
+        $this->assertEquals('original', $config->foo);
+        $this->assertEquals('new', $config->bar);
+    }
+
+    public function testMergePreserveRecursesIntoNestedArrays()
+    {
+        $config = new Config([
+            'db' => [
+                'host' => 'localhost',
+                'port' => 5432
+            ]
+        ], true);
+        $config->merge([
+            'db' => [
+                'port' => 9999,
+                'name' => 'app'
+            ]
+        ], true);
+        $this->assertEquals([
+            'db' => [
+                'host' => 'localhost',
+                'port' => 5432,
+                'name' => 'app'
+            ]
+        ], $config->toArray());
+    }
+
+    public function testMergePreserveKeepsExistingListWholesaleOnListCollision()
+    {
+        $config = new Config([
+            'a' => [1, 2]
+        ], true);
+        $config->merge([
+            'a' => [3, 4, 5]
+        ], true);
+        $this->assertEquals(['a' => [1, 2]], $config->toArray());
     }
 
     public function testParsePhp()
@@ -161,6 +334,43 @@ class ConfigTest extends TestCase
         $this->assertEquals(34843, $config->invoice);
     }
 
+    public function testParseYamlNormalizesLegacyBooleanAndOctalScalars()
+    {
+        $config = Config::createFromData(__DIR__ . '/tmp/scalars.yml');
+        $this->assertFalse($config->debug);
+        $this->assertTrue($config->flag);
+        $this->assertEquals(493, $config->octal);
+        $this->assertTrue($config->truthy);
+        $this->assertFalse($config->falsy);
+        $this->assertTrue($config->{'onoff_on'});
+        $this->assertFalse($config->{'onoff_off'});
+        $this->assertEquals('hello', $config->name);
+    }
+
+    public function testNormalizeYamlScalarsDoesNotOverMatch()
+    {
+        $method = new \ReflectionMethod(Config::class, 'normalizeYamlScalars');
+        $method->setAccessible(true);
+        $this->assertEquals('yesterday', $method->invoke(null, 'yesterday'));
+        $this->assertEquals('089', $method->invoke(null, '089'));
+        $this->assertEquals(['a' => true, 'b' => 'yesterday'], $method->invoke(null, ['a' => 'yes', 'b' => 'yesterday']));
+    }
+
+    public function testParseMalformedYamlException()
+    {
+        $this->expectException('Pop\Config\ParseException');
+
+        set_error_handler(function ($errno, $errstr) {
+            throw new \Exception($errstr);
+        });
+
+        try {
+            Config::createFromData(__DIR__ . '/tmp/malformed.yml');
+        } finally {
+            restore_error_handler();
+        }
+    }
+
     public function testParseIni()
     {
         $config = Config::createFromData(__DIR__ . '/tmp/config.ini');
@@ -175,10 +385,46 @@ class ConfigTest extends TestCase
         $this->assertEquals('bar', $config->foo);
     }
 
-    public function testParseEmpty()
+    public function testParseUnsupportedFormatException()
     {
-        $config = Config::createFromData(__DIR__ . '/tmp/baddata');
+        $this->expectException('Pop\Config\UnsupportedFormatException');
+        Config::createFromData(__DIR__ . '/tmp/baddata');
+    }
+
+    public function testCreateFromDataDefaultIsEmptyConfig()
+    {
+        $config = Config::createFromData();
         $this->assertEquals(0, count($config->toArray()));
+    }
+
+    public function testParseDataArrayPassthrough()
+    {
+        $data = Config::parseData(['foo' => 'bar']);
+        $this->assertEquals(['foo' => 'bar'], $data);
+    }
+
+    public function testParseDataInvalidTypeException()
+    {
+        $this->expectException('Pop\Config\ParseException');
+        Config::parseData(123);
+    }
+
+    public function testParseMissingFileException()
+    {
+        $this->expectException('Pop\Config\ParseException');
+        Config::createFromData(__DIR__ . '/tmp/does-not-exist.json');
+    }
+
+    public function testParseMalformedJsonException()
+    {
+        $this->expectException('Pop\Config\ParseException');
+        Config::createFromData(__DIR__ . '/tmp/malformed.json');
+    }
+
+    public function testParseMalformedIniException()
+    {
+        $this->expectException('Pop\Config\ParseException');
+        Config::createFromData(__DIR__ . '/tmp/malformed.ini');
     }
 
     public function testMergeParse()
@@ -276,6 +522,25 @@ class ConfigTest extends TestCase
         }
     }
 
+    public function testWriteToYamlUsesBlockStyleForDeepNesting()
+    {
+        $config = new Config([
+            'foo' => 'bar',
+            'baz' => [
+                'hello' => 'world',
+                'yo' => [
+                    'whats' => [
+                        'up',
+                        'dude'
+                    ]
+                ]
+            ]
+        ]);
+        $yaml = $config->toYaml();
+        $this->assertFalse(str_contains($yaml, '{'));
+        $this->assertFalse(str_contains($yaml, '['));
+    }
+
     public function testWriteToIni()
     {
         $ini = parse_ini_string(<<<INI
@@ -333,9 +598,29 @@ INI
         }
     }
 
+    public function testWriteToXmlWithNullValueNoDeprecation()
+    {
+        $config = new Config([
+            'foo'   => 'bar',
+            'empty' => null
+        ]);
+
+        set_error_handler(function ($errno, $errstr) {
+            throw new \Exception($errstr);
+        });
+
+        try {
+            $xml = $config->render('xml');
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertStringContainsString('<empty/>', $xml);
+    }
+
     public function testWriteException()
     {
-        $this->expectException('Pop\Config\Exception');
+        $this->expectException('Pop\Config\UnsupportedFormatException');
         $config = new Config([
             'foo' => 'bar',
             'baz' => [
@@ -349,6 +634,15 @@ INI
             ]
         ]);
         $config->writeToFile(__DIR__ . '/tmp/write.bad');
+    }
+
+    public function testRenderUnsupportedFormatException()
+    {
+        $this->expectException('Pop\Config\UnsupportedFormatException');
+        $config = new Config([
+            'foo' => 'bar'
+        ]);
+        $config->render('bogus');
     }
 
 }

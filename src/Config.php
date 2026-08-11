@@ -4,7 +4,7 @@
  *
  * @link       https://github.com/popphp/popphp-framework
  * @author     Nick Sagona, III <dev@noladev.com>
- * @copyright  Copyright (c) 2009-2026 NOLA Interactive, LLC.
+ * @copyright  Copyright (c) 2009-2027 NOLA Interactive, LLC.
  * @license    https://www.popphp.org/license     New BSD License
  */
 
@@ -16,6 +16,8 @@ namespace Pop\Config;
 use Pop\Utils\ArrayObject;
 use SimpleXMLElement;
 use DOMDocument;
+use Symfony\Component\Yaml\Yaml;
+use Symfony\Component\Yaml\Exception\ParseException as SymfonyYamlParseException;
 
 /**
  * Config class
@@ -23,9 +25,9 @@ use DOMDocument;
  * @category   Pop
  * @package    Pop\Config
  * @author     Nick Sagona, III <dev@noladev.com>
- * @copyright  Copyright (c) 2009-2026 NOLA Interactive, LLC.
+ * @copyright  Copyright (c) 2009-2027 NOLA Interactive, LLC.
  * @license    https://www.popphp.org/license     New BSD License
- * @version    4.0.4
+ * @version    5.0.0
  */
 class Config extends ArrayObject
 {
@@ -67,32 +69,95 @@ class Config extends ArrayObject
      * Method to parse data and return config values
      *
      * @param  mixed $data
+     * @throws Exception
      * @return array
      */
     public static function parseData(mixed $data): array
     {
+        if (is_array($data)) {
+            return $data;
+        }
+
+        if (!is_string($data)) {
+            throw new ParseException('Error: The config data must be a file path string or an array.');
+        }
+
+        if (!is_file($data)) {
+            throw new ParseException("Error: The config file '" . $data . "' does not exist.");
+        }
+
         // If PHP
         if ((strtolower((substr($data, -6)) == '.phtml') ||
             strtolower((substr($data, -4)) == '.php'))) {
-            $data = include $data;
+            $result = include $data;
         // If JSON
         } else if (strtolower(substr($data, -5)) == '.json') {
-            $data = json_decode(file_get_contents($data), true);
-        // If YAML - requires YAML ext
+            $result = json_decode(file_get_contents($data), true);
+        // If YAML
         } else if ((strtolower(substr($data, -5)) == '.yaml') ||
             (strtolower(substr($data, -4)) == '.yml'))  {
-            $data = yaml_parse(file_get_contents($data));
+            try {
+                $result = Yaml::parseFile($data);
+                if (is_array($result)) {
+                    $result = self::normalizeYamlScalars($result);
+                }
+            } catch (SymfonyYamlParseException $e) {
+                throw new ParseException("Error: Unable to parse the config data from '" . $data . "'.", 0, $e);
+            }
         // If INI
         } else if (strtolower(substr($data, -4)) == '.ini') {
-            $data = parse_ini_file($data, true);
+            $result = @parse_ini_file($data, true);
         // If XML
         } else if (strtolower(substr($data, -4)) == '.xml') {
-            $data = (array)simplexml_load_file($data);
+            $result = (array)simplexml_load_file($data);
         } else {
-            $data = [];
+            throw new UnsupportedFormatException(
+                "Error: Unable to determine the config format from the file '" . $data . "'. " .
+                "Supported extensions are .php, .phtml, .json, .yaml, .yml, .ini and .xml."
+            );
         }
 
-        return $data;
+        if (!is_array($result)) {
+            throw new ParseException("Error: Unable to parse the config data from '" . $data . "'.");
+        }
+
+        return $result;
+    }
+
+    /**
+     * Normalize YAML scalars parsed by symfony/yaml back to the legacy behavior
+     * of the PECL yaml extension (libyaml, YAML 1.1), which converted additional
+     * boolean words (yes/no/on/off, etc.) and leading-zero octal-looking integers
+     * to booleans and integers, respectively. symfony/yaml (YAML 1.2-ish core
+     * schema) leaves those as plain strings. This is applied only to the YAML
+     * read path, not to writing.
+     *
+     * Note: ISO date-like scalars are a known, intentionally unfixed gap -
+     * symfony/yaml auto-converts them to a Unix timestamp int with no public
+     * API to prevent it.
+     *
+     * @param  mixed $value
+     * @return mixed
+     */
+    protected static function normalizeYamlScalars(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            foreach ($value as $key => $v) {
+                $value[$key] = self::normalizeYamlScalars($v);
+            }
+            return $value;
+        }
+
+        if (is_string($value)) {
+            if (preg_match('/^(?:y|Y|yes|Yes|YES|n|N|no|No|NO|on|On|ON|off|Off|OFF)$/', $value)) {
+                return in_array($value, ['y', 'Y', 'yes', 'Yes', 'YES', 'on', 'On', 'ON'], true);
+            }
+            if (preg_match('/^0[0-7]+$/', $value)) {
+                return octdec($value);
+            }
+        }
+
+        return $value;
     }
 
     /**
@@ -108,7 +173,7 @@ class Config extends ArrayObject
     public function merge(mixed $data, bool $preserve = false): Config
     {
         if (!$this->allowChanges) {
-            throw new Exception('Real-time configuration changes are not allowed.');
+            throw new ChangesNotAllowedException('Real-time configuration changes are not allowed.');
         }
 
         if ($data instanceof Config) {
@@ -116,9 +181,31 @@ class Config extends ArrayObject
         }
 
         $this->data = ($preserve) ?
-            array_merge_recursive($this->data, $data) : array_replace_recursive($this->data, $data);
+            $this->mergeRecursivePreserve($this->data, $data) : array_replace_recursive($this->data, $data);
 
         return $this;
+    }
+
+    /**
+     * Recursively merge $new into $original, keeping $original's value whenever
+     * a key collides and at least one side isn't an array.
+     *
+     * @param  array $original
+     * @param  array $new
+     * @return array
+     */
+    private function mergeRecursivePreserve(array $original, array $new): array
+    {
+        foreach ($new as $key => $value) {
+            if (!array_key_exists($key, $original)) {
+                $original[$key] = $value;
+            } else if (is_array($original[$key]) && is_array($value) &&
+                !(array_is_list($original[$key]) && array_is_list($value))) {
+                $original[$key] = $this->mergeRecursivePreserve($original[$key], $value);
+            }
+        }
+
+        return $original;
     }
 
     /**
@@ -134,7 +221,7 @@ class Config extends ArrayObject
     public function mergeFromData(mixed $data, bool $preserve = false): Config
     {
         if (!$this->allowChanges) {
-            throw new Exception('Real-time configuration changes are not allowed.');
+            throw new ChangesNotAllowedException('Real-time configuration changes are not allowed.');
         }
 
         return $this->merge(self::parseData($data), $preserve);
@@ -171,7 +258,7 @@ class Config extends ArrayObject
                 $config =$this->toXml();
                 break;
             default:
-                throw new Exception(
+                throw new UnsupportedFormatException(
                     "Invalid type '" . $format . "'. Supported config file types are PHP, JSON, YAML, INI or XML."
                 );
         }
@@ -277,9 +364,9 @@ class Config extends ArrayObject
                 $this->arrayToXml($value, $subNode);
             } else {
                 if (!is_numeric($key)) {
-                    $config->addChild($key, htmlspecialchars($value));
+                    $config->addChild($key, htmlspecialchars((string)$value));
                 } else {
-                    $config->addChild('item', htmlspecialchars($value));
+                    $config->addChild('item', htmlspecialchars((string)$value));
                 }
             }
         }
@@ -293,7 +380,7 @@ class Config extends ArrayObject
      */
     protected function arrayToYaml(array $array): string
     {
-        return yaml_emit($array);
+        return Yaml::dump($array, 512);
     }
 
     /**
@@ -341,9 +428,26 @@ class Config extends ArrayObject
     public function __set(?string $name = null, mixed $value = null)
     {
         if (!$this->allowChanges) {
-            throw new Exception('Real-time configuration changes are not allowed.');
+            throw new ChangesNotAllowedException('Real-time configuration changes are not allowed.');
         }
-        parent::__set($name, $value);
+
+        if ($name === null || !str_contains($name, '.') || array_key_exists($name, (array)$this->data)) {
+            parent::__set($name, $value);
+            return;
+        }
+
+        $segments    = explode('.', $name);
+        $lastSegment = array_pop($segments);
+
+        $data =& $this->data;
+        foreach ($segments as $segment) {
+            if (!isset($data[$segment]) || !is_array($data[$segment])) {
+                $data[$segment] = [];
+            }
+            $data =& $data[$segment];
+        }
+
+        $data[$lastSegment] = $value;
     }
 
     /**
@@ -356,9 +460,86 @@ class Config extends ArrayObject
     public function __unset(string $name): void
     {
         if (!$this->allowChanges) {
-            throw new Exception('Real-time configuration changes are not allowed.');
+            throw new ChangesNotAllowedException('Real-time configuration changes are not allowed.');
         }
-        parent::__unset($name);
+
+        if (!str_contains($name, '.') || array_key_exists($name, (array)$this->data)) {
+            parent::__unset($name);
+            return;
+        }
+
+        $segments    = explode('.', $name);
+        $lastSegment = array_pop($segments);
+
+        $data =& $this->data;
+        foreach ($segments as $segment) {
+            if (!is_array($data) || !array_key_exists($segment, $data)) {
+                return;
+            }
+            $data =& $data[$segment];
+        }
+
+        if (is_array($data) && array_key_exists($lastSegment, $data)) {
+            unset($data[$lastSegment]);
+        }
+    }
+
+    /**
+     * Get a value, supporting dot notation for nested keys
+     *
+     * @param  string $name
+     * @return mixed
+     */
+    public function __get(string $name): mixed
+    {
+        $data = (array)$this->data;
+
+        if (array_key_exists($name, $data)) {
+            return $data[$name];
+        }
+
+        if (!str_contains($name, '.')) {
+            return null;
+        }
+
+        $value = $data;
+        foreach (explode('.', $name) as $segment) {
+            if (!is_array($value) || !array_key_exists($segment, $value)) {
+                return null;
+            }
+            $value = $value[$segment];
+        }
+
+        return $value;
+    }
+
+    /**
+     * Determine if a value is set, supporting dot notation for nested keys
+     *
+     * @param  string $name
+     * @return bool
+     */
+    public function __isset(string $name): bool
+    {
+        $data = (array)$this->data;
+
+        if (array_key_exists($name, $data)) {
+            return true;
+        }
+
+        if (!str_contains($name, '.')) {
+            return false;
+        }
+
+        $value = $data;
+        foreach (explode('.', $name) as $segment) {
+            if (!is_array($value) || !array_key_exists($segment, $value)) {
+                return false;
+            }
+            $value = $value[$segment];
+        }
+
+        return true;
     }
 
 }
