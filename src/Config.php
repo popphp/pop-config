@@ -87,35 +87,41 @@ class Config extends ArrayObject
             throw new ParseException("Error: The config file '" . $data . "' does not exist.");
         }
 
-        // If PHP
-        if ((strtolower(substr($data, -6)) == '.phtml') ||
-            (strtolower(substr($data, -4)) == '.php')) {
-            $result = include $data;
-        // If JSON
-        } else if (strtolower(substr($data, -5)) == '.json') {
-            $result = json_decode(file_get_contents($data), true);
-        // If YAML
-        } else if ((strtolower(substr($data, -5)) == '.yaml') ||
-            (strtolower(substr($data, -4)) == '.yml'))  {
-            try {
-                $result = Yaml::parseFile($data);
-                if (is_array($result)) {
-                    $result = self::normalizeYamlScalars($result);
+        switch (strtolower(pathinfo($data, PATHINFO_EXTENSION))) {
+            // If PHP
+            case 'php':
+            case 'phtml':
+                $result = include $data;
+                break;
+            // If JSON
+            case 'json':
+                $result = json_decode(file_get_contents($data), true);
+                break;
+            // If YAML
+            case 'yaml':
+            case 'yml':
+                try {
+                    $result = Yaml::parseFile($data);
+                    if (is_array($result)) {
+                        $result = self::normalizeYamlScalars($result);
+                    }
+                } catch (SymfonyYamlParseException $e) {
+                    throw new ParseException("Error: Unable to parse the config data from '" . $data . "'.", 0, $e);
                 }
-            } catch (SymfonyYamlParseException $e) {
-                throw new ParseException("Error: Unable to parse the config data from '" . $data . "'.", 0, $e);
-            }
-        // If INI
-        } else if (strtolower(substr($data, -4)) == '.ini') {
-            $result = @parse_ini_file($data, true);
-        // If XML
-        } else if (strtolower(substr($data, -4)) == '.xml') {
-            $result = (array)simplexml_load_file($data);
-        } else {
-            throw new UnsupportedFormatException(
-                "Error: Unable to determine the config format from the file '" . $data . "'. " .
-                "Supported extensions are .php, .phtml, .json, .yaml, .yml, .ini and .xml."
-            );
+                break;
+            // If INI
+            case 'ini':
+                $result = @parse_ini_file($data, true);
+                break;
+            // If XML
+            case 'xml':
+                $result = (array)simplexml_load_file($data);
+                break;
+            default:
+                throw new UnsupportedFormatException(
+                    "Error: Unable to determine the config format from the file '" . $data . "'. " .
+                    "Supported extensions are .php, .phtml, .json, .yaml, .yml, .ini and .xml."
+                );
         }
 
         if (!is_array($result)) {
@@ -440,14 +446,7 @@ class Config extends ArrayObject
         $segments    = explode('.', $name);
         $lastSegment = array_pop($segments);
 
-        $data =& $this->data;
-        foreach ($segments as $segment) {
-            if (!isset($data[$segment]) || !is_array($data[$segment])) {
-                $data[$segment] = [];
-            }
-            $data =& $data[$segment];
-        }
-
+        $data =& $this->walkDotSegments($segments, true);
         $data[$lastSegment] = $value;
     }
 
@@ -472,17 +471,40 @@ class Config extends ArrayObject
         $segments    = explode('.', $name);
         $lastSegment = array_pop($segments);
 
+        $data =& $this->walkDotSegments($segments, false);
+        if (is_array($data) && array_key_exists($lastSegment, $data)) {
+            unset($data[$lastSegment]);
+        }
+    }
+
+    /**
+     * Walk $this->data by reference along a set of dot-notation path segments,
+     * returning a reference to the container that should hold the final segment.
+     * When $autoVivify is true, missing/non-array segments are created as empty
+     * arrays along the way; when false, the walk stops and returns null as soon
+     * as a segment is missing.
+     *
+     * @param  array $segments
+     * @param  bool  $autoVivify
+     * @return mixed
+     */
+    private function &walkDotSegments(array $segments, bool $autoVivify): mixed
+    {
         $data =& $this->data;
+
         foreach ($segments as $segment) {
-            if (!is_array($data) || !array_key_exists($segment, $data)) {
-                return;
+            if ($autoVivify) {
+                if (!isset($data[$segment]) || !is_array($data[$segment])) {
+                    $data[$segment] = [];
+                }
+            } else if (!is_array($data) || !array_key_exists($segment, $data)) {
+                $missing = null;
+                return $missing;
             }
             $data =& $data[$segment];
         }
 
-        if (is_array($data) && array_key_exists($lastSegment, $data)) {
-            unset($data[$lastSegment]);
-        }
+        return $data;
     }
 
     /**
@@ -493,25 +515,8 @@ class Config extends ArrayObject
      */
     public function __get(string $name): mixed
     {
-        $data = (array)$this->data;
-
-        if (array_key_exists($name, $data)) {
-            return $data[$name];
-        }
-
-        if (!str_contains($name, '.')) {
-            return null;
-        }
-
-        $value = $data;
-        foreach (explode('.', $name) as $segment) {
-            if (!is_array($value) || !array_key_exists($segment, $value)) {
-                return null;
-            }
-            $value = $value[$segment];
-        }
-
-        return $value;
+        [$found, $value] = $this->resolveDotPath($name);
+        return $found ? $value : null;
     }
 
     /**
@@ -522,25 +527,37 @@ class Config extends ArrayObject
      */
     public function __isset(string $name): bool
     {
+        [$found] = $this->resolveDotPath($name);
+        return $found;
+    }
+
+    /**
+     * Resolve a plain or dot-notation key against $this->data.
+     *
+     * @param  string $name
+     * @return array{0: bool, 1: mixed}
+     */
+    private function resolveDotPath(string $name): array
+    {
         $data = (array)$this->data;
 
         if (array_key_exists($name, $data)) {
-            return true;
+            return [true, $data[$name]];
         }
 
         if (!str_contains($name, '.')) {
-            return false;
+            return [false, null];
         }
 
         $value = $data;
         foreach (explode('.', $name) as $segment) {
             if (!is_array($value) || !array_key_exists($segment, $value)) {
-                return false;
+                return [false, null];
             }
             $value = $value[$segment];
         }
 
-        return true;
+        return [true, $value];
     }
 
 }
