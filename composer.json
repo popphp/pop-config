@@ -21,11 +21,12 @@
     ],
     "require": {
         "php": ">=8.4.0",
-        "popphp/pop-utils": "^3.0.0-beta.1",
+        "popphp/pop-utils": "^3.0.0-beta.3",
         "symfony/yaml": "^6.4 || ^7.0 || ^8.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^12.5.0"
+        "phpunit/phpunit": "^12.5.0",
+        "phpstan/phpstan": "^2.2"
     },
     "suggest": {
         "ext-json": "For handling JSON data",
@@ -43,7 +44,8 @@
         }
     },
     "scripts": {
-        "test": "vendor/bin/phpunit"
+        "test": "vendor/bin/phpunit",
+        "analyse": "vendor/bin/phpstan analyse"
     },
     "extra": {
         "branch-alias": {

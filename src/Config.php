@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Pop PHP Framework (https://www.popphp.org/)
  *
@@ -87,8 +88,8 @@ class Config extends ArrayObject
         }
 
         // If PHP
-        if ((strtolower((substr($data, -6)) == '.phtml') ||
-            strtolower((substr($data, -4)) == '.php'))) {
+        if ((strtolower(substr($data, -6)) == '.phtml') ||
+            (strtolower(substr($data, -4)) == '.php')) {
             $result = include $data;
         // If JSON
         } else if (strtolower(substr($data, -5)) == '.json') {
@@ -423,9 +424,9 @@ class Config extends ArrayObject
      *
      * @param  ?string $name
      * @param  mixed $value
-     * @return static
+     * @return void
      */
-    public function __set(?string $name = null, mixed $value = null)
+    public function __set(?string $name = null, mixed $value = null): void
     {
         if (!$this->allowChanges) {
             throw new ChangesNotAllowedException('Real-time configuration changes are not allowed.');
