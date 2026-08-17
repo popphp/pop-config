@@ -350,7 +350,6 @@ class ConfigTest extends TestCase
     public function testNormalizeYamlScalarsDoesNotOverMatch()
     {
         $method = new \ReflectionMethod(Config::class, 'normalizeYamlScalars');
-        $method->setAccessible(true);
         $this->assertEquals('yesterday', $method->invoke(null, 'yesterday'));
         $this->assertEquals('089', $method->invoke(null, '089'));
         $this->assertEquals(['a' => true, 'b' => 'yesterday'], $method->invoke(null, ['a' => 'yes', 'b' => 'yesterday']));
