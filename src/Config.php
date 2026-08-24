@@ -111,7 +111,7 @@ class Config extends ArrayObject
                 break;
             // If INI
             case 'ini':
-                $result = @parse_ini_file($data, true);
+                $result = @parse_ini_file($data, false, INI_SCANNER_TYPED);
                 break;
             // If XML
             case 'xml':

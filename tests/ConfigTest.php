@@ -572,6 +572,30 @@ INI
         }
     }
 
+    public function testIniRoundTrip()
+    {
+        $config = new Config([
+            'name'  => 'test',
+            'count' => 5,
+            'db'    => [
+                'host' => 'localhost',
+                'port' => 3306,
+            ],
+        ]);
+
+        $config->writeToFile(__DIR__ . '/tmp/roundtrip.ini');
+        $reparsed = Config::createFromData(__DIR__ . '/tmp/roundtrip.ini');
+
+        $this->assertEquals('test', $reparsed->name);
+        $this->assertSame(5, $reparsed->count);
+        $this->assertEquals('localhost', $reparsed->db['host']);
+        $this->assertSame(3306, $reparsed->db['port']);
+
+        if (file_exists(__DIR__ . '/tmp/roundtrip.ini')) {
+            unlink(__DIR__ . '/tmp/roundtrip.ini');
+        }
+    }
+
     public function testWriteToXml()
     {
         $config = new Config([
